@@ -29,3 +29,7 @@ mac:
 dmg:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
+publish:
+  provider: github
+  owner: silverado-jewelry
+  repo: np-ptinter-v2

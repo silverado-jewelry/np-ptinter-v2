@@ -17,10 +17,17 @@ type CheckState =
   | { status: 'not-found' }
   | { status: 'error'; message: string }
 
+type KeyCheckState =
+  | { status: 'idle' }
+  | { status: 'checking' }
+  | { status: 'valid' }
+  | { status: 'invalid'; message: string }
+
 function App(): JSX.Element {
   const [screen, setScreen] = useState<Screen>('main')
   const [settings, setSettings] = useState<AppSettings | null>(null)
   const [settingsError, setSettingsError] = useState<string | null>(null)
+  const [keyCheck, setKeyCheck] = useState<KeyCheckState>({ status: 'idle' })
 
   const [ttn, setTtn] = useState('')
   const [check, setCheck] = useState<CheckState>({ status: 'idle' })
@@ -30,15 +37,29 @@ function App(): JSX.Element {
   const [printing, setPrinting] = useState(false)
   const [printNotice, setPrintNotice] = useState<string | null>(null)
 
+  const verifyKey = useCallback((): void => {
+    setKeyCheck({ status: 'checking' })
+    window.api
+      .verifyApiKey()
+      .then((result) =>
+        setKeyCheck(
+          result.ok ? { status: 'valid' } : { status: 'invalid', message: result.message }
+        )
+      )
+      .catch(() => setKeyCheck({ status: 'invalid', message: 'Не вдалося перевірити ключ' }))
+  }, [])
+
   const loadSettings = useCallback((): void => {
     window.api
       .getSettings()
       .then((loaded) => {
         setSettings(loaded)
         setSettingsError(null)
+        if (loaded.hasApiKey) verifyKey()
+        else setKeyCheck({ status: 'idle' })
       })
       .catch(() => setSettingsError('Не вдалося завантажити налаштування'))
-  }, [])
+  }, [verifyKey])
 
   useEffect(() => {
     loadSettings()
@@ -127,6 +148,19 @@ function App(): JSX.Element {
           {settings !== null && !hasApiKey && (
             <div className="banner banner-warn">
               API-ключ НП не задано — друк заблоковано.{' '}
+              <button className="link" onClick={() => setScreen('settings')}>
+                Перейти в Налаштування
+              </button>
+            </div>
+          )}
+
+          {hasApiKey && keyCheck.status === 'checking' && (
+            <p className="status-muted">Перевіряємо API-ключ НП…</p>
+          )}
+
+          {hasApiKey && keyCheck.status === 'invalid' && (
+            <div className="banner banner-error">
+              API-ключ НП недійсний ({keyCheck.message}). Можливо, термін дії минув — оновіть ключ.{' '}
               <button className="link" onClick={() => setScreen('settings')}>
                 Перейти в Налаштування
               </button>
