@@ -24,10 +24,13 @@ nsis:
 mac:
   entitlementsInherit: build/entitlements.mac.plist
   target:
-    - dmg
+    - target: dmg
+      arch:
+        - arm64
+        - x64
   notarize: false
 dmg:
-  artifactName: ${name}-${version}.${ext}
+  artifactName: ${name}-${version}-${arch}.${ext}
 npmRebuild: false
 publish:
   provider: github

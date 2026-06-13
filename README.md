@@ -24,10 +24,10 @@ npm run lint       # ESLint
 
 ```bash
 npm run build:win  # Windows: NSIS .exe (збирати на Windows)
-npm run build:mac  # macOS: .dmg (збирати на macOS)
+npm run build:mac  # macOS: два .dmg — Apple Silicon (arm64) і Intel (x64)
 ```
 
-Артефакти зʼявляються в `dist/`.
+Артефакти зʼявляються в `dist/` (для macOS — окремі файли `…-arm64.dmg` і `…-x64.dmg`).
 
 ### Підпис коду (не реалізовано, лише нотатка)
 
