@@ -1,6 +1,6 @@
 {
   "name": "silverado-np-printer",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Друк етикеток Code 128 для ТТН Нової Пошти (Xprinter XP-365B)",
   "main": "./out/main/index.js",
   "author": "Appricot Soft",
@@ -32,7 +32,7 @@
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
-    "electron": "^39.2.6",
+    "electron": "22.3.27",
     "electron-builder": "^26.0.12",
     "electron-vite": "^5.0.0",
     "eslint": "^9.39.1",

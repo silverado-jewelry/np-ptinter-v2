@@ -1,3 +1,4 @@
+import { net } from 'electron'
 import type {
   NpCheckResult,
   NpRequestBody,
@@ -9,41 +10,62 @@ import { describeError, getApiKey } from './settings'
 
 const NP_ENDPOINT = 'https://api.novaposhta.ua/v2.0/json/'
 const REQUEST_TIMEOUT_MS = 10_000
+const TIMEOUT_MESSAGE = 'Час очікування відповіді НП вичерпано — перевірте інтернет-зʼєднання'
 
-async function npRequest<T>(body: NpRequestBody): Promise<NpResponse<T>> {
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
-  try {
-    const response = await fetch(NP_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: controller.signal
+// Глобального fetch у Node 16 (Electron 22) немає, тож йдемо через Chromium-стек (net.request).
+function npRequest<T>(body: NpRequestBody): Promise<NpResponse<T>> {
+  return new Promise((resolve, reject) => {
+    const request = net.request({ method: 'POST', url: NP_ENDPOINT })
+    request.setHeader('Content-Type', 'application/json')
+
+    let timedOut = false
+    const timeout = setTimeout(() => {
+      timedOut = true
+      request.abort()
+    }, REQUEST_TIMEOUT_MS)
+
+    request.on('response', (response) => {
+      const status = response.statusCode
+      const chunks: Buffer[] = []
+      response.on('data', (chunk: Buffer) => chunks.push(chunk))
+      response.on('end', () => {
+        clearTimeout(timeout)
+        try {
+          if (status === 429) {
+            throw new Error('Забагато запитів до API НП — спробуйте за хвилину')
+          }
+          if (status < 200 || status >= 300) {
+            throw new Error(`API НП повернуло HTTP ${status}`)
+          }
+          const json: unknown = JSON.parse(Buffer.concat(chunks).toString('utf-8'))
+          if (typeof json !== 'object' || json === null || !('success' in json)) {
+            throw new Error('Неочікувана відповідь API НП')
+          }
+          const parsed = json as { success: unknown; data?: unknown; errors?: unknown }
+          resolve({
+            success: parsed.success === true,
+            data: Array.isArray(parsed.data) ? (parsed.data as T[]) : [],
+            errors: Array.isArray(parsed.errors) ? parsed.errors.map(String) : []
+          })
+        } catch (error) {
+          reject(error)
+        }
+      })
     })
-    if (response.status === 429) {
-      throw new Error('Забагато запитів до API НП — спробуйте за хвилину')
-    }
-    if (!response.ok) {
-      throw new Error(`API НП повернуло HTTP ${response.status}`)
-    }
-    const json: unknown = await response.json()
-    if (typeof json !== 'object' || json === null || !('success' in json)) {
-      throw new Error('Неочікувана відповідь API НП')
-    }
-    const parsed = json as { success: unknown; data?: unknown; errors?: unknown }
-    return {
-      success: parsed.success === true,
-      data: Array.isArray(parsed.data) ? (parsed.data as T[]) : [],
-      errors: Array.isArray(parsed.errors) ? parsed.errors.map(String) : []
-    }
-  } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error('Час очікування відповіді НП вичерпано — перевірте інтернет-зʼєднання')
-    }
-    throw error
-  } finally {
-    clearTimeout(timeout)
-  }
+
+    request.on('abort', () => {
+      clearTimeout(timeout)
+      reject(new Error(TIMEOUT_MESSAGE))
+    })
+
+    request.on('error', (error) => {
+      clearTimeout(timeout)
+      reject(timedOut ? new Error(TIMEOUT_MESSAGE) : error)
+    })
+
+    request.write(JSON.stringify(body))
+    request.end()
+  })
 }
 
 export async function checkDocument(ttn: string): Promise<NpCheckResult> {

@@ -15,7 +15,9 @@ asarUnpack:
 win:
   executableName: np-label-printer
   target:
-    - nsis
+    - target: nsis
+      arch:
+        - x64
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}

@@ -6,10 +6,12 @@ const sharedAlias = { '@shared': resolve('shared') }
 
 export default defineConfig({
   main: {
-    resolve: { alias: sharedAlias }
+    resolve: { alias: sharedAlias },
+    build: { target: 'node16' }
   },
   preload: {
-    resolve: { alias: sharedAlias }
+    resolve: { alias: sharedAlias },
+    build: { target: 'node16' }
   },
   renderer: {
     resolve: {
@@ -18,6 +20,7 @@ export default defineConfig({
         ...sharedAlias
       }
     },
+    build: { target: 'chrome108' },
     plugins: [react()]
   }
 })
